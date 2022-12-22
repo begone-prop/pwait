@@ -3,7 +3,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <map>
 #include <vector>
 
 #include <cstdlib>
@@ -15,10 +14,22 @@
 #include <signal.h>
 #include <errno.h>
 #include <string.h>
+#include <getopt.h>
+
+static const struct option long_options[] = {
+    {"timeout", required_argument, NULL, 't'},
+    {"interval", required_argument, NULL, 'n'},
+    {"help", no_argument, NULL, 'h'},
+};
+
+struct process {
+    std::string name;
+    pid_t pid;
+};
 
 bool isNumber(const char*);
 bool checkPid(pid_t);
-const std::map<const std::string, std::vector<pid_t>> buildProcessMap(void);
+std::vector<process> buildProcessVec(void);
 
 bool checkPid(pid_t pid) {
     int saved_errno = errno;
@@ -37,10 +48,10 @@ bool isNumber(const char *arg) {
     return true;
 }
 
-const std::map<const std::string, std::vector<pid_t>> buildProcessMap(void) {
-    static const std::string proc_path = "/lmao";
+std::vector<process> buildProcessMap(void) {
+    static const std::string proc_path = "/proc";
 
-    std::map<const std::string, std::vector<pid_t>> processes;
+    std::vector<process> processes;
 
     DIR* procd = opendir(proc_path.c_str());
     if(!procd) return processes;
@@ -81,7 +92,7 @@ const std::map<const std::string, std::vector<pid_t>> buildProcessMap(void) {
                 std::stringstream ss(line);
                 std::string _, name;
                 ss >> _ >> name;
-                processes[name].push_back(std::atoi(proc_entry->d_name));
+                processes.push_back({name, std::atoi(proc_entry->d_name)});
                 break;
             }
         }
@@ -95,11 +106,55 @@ int main(int argc, char** argv) {
     (void) argc;
     (void) argv;
 
-    const std::map<const std::string, std::vector<pid_t>> processes = buildProcessMap();
+    bool gathered_proc_info = false;
+    std::vector<process> processes;
 
-    //for(std::map<const std::string, std::vector<pid_t>>::const_iterator it = processes.begin(); it != processes.end(); it++) {
-        //std::cout << it->second.size() << '\n';
-    //}
+    int opt;
+    while((opt = getopt_long(argc, argv, "t:", long_options, NULL)) != -1) {
+        switch(opt) {
+            case 't':
+                std::cout << "Timeout option given, value is " << optarg << '\n';
+                break;
+
+            case 'i':
+                std::cout << "Interval option given, value is " << optarg << '\n';
+                break;
+
+            default:
+                std::cerr << "Invalid argument\n";
+                break;
+        }
+    }
+
+    if(argc == optind) {
+        std::cerr << program_invocation_short_name << ": No pids given\n";
+        return 1;
+    }
+
+    std::vector<pid_t> target_pids;
+
+    for(int idx = optind; idx < argc; idx++) {
+        if(isNumber(argv[idx]))
+            target_pids.push_back(std::atoi(argv[idx]));
+        else {
+            if(!gathered_proc_info) {
+                processes = buildProcessMap();
+                gathered_proc_info = true;
+            }
+
+            for(size_t i = 0; i < processes.size(); i++) {
+                if(processes[i].name.find(argv[idx]) != std::string::npos) {
+                    target_pids.push_back(processes[i].pid);
+                }
+            }
+        }
+    }
+
+    for(size_t idx = 0; idx < target_pids.size(); idx++) {
+        std::cout << target_pids[idx] << '\n';
+    }
+
+
 
     return 0;
 }
