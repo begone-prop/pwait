@@ -37,7 +37,7 @@ bool checkPid(pid_t pid) {
 
     bool rt = rc == -1 && errno == ESRCH;
     errno = saved_errno;
-    return rt;
+    return !rt;
 }
 
 bool isNumber(const char *arg) {
@@ -150,11 +150,38 @@ int main(int argc, char** argv) {
         }
     }
 
+    size_t pid_done = 0;
+    bool check_pids = true;
+
+
     for(size_t idx = 0; idx < target_pids.size(); idx++) {
-        std::cout << target_pids[idx] << '\n';
+        std::cout << target_pids[idx] << (idx + 1 == target_pids.size() ? "\n" : ", ");
     }
 
+    if(target_pids.size() == 0) return 0;
 
+    size_t count_done = 0;
+
+    //for(size_t idx = 0; idx < target_pids.size(); idx++) {
+        //std::cout << checkPid(target_pids[idx]) << '\n';
+    //}
+
+    struct timespec req, rem;
+
+    while(check_pids) {
+        for(size_t idx = 0; idx < target_pids.size(); idx++) {
+            if(target_pids[idx] == 0 || checkPid(target_pids[idx])) continue;
+
+            target_pids[idx] = 0;
+
+            if(++count_done == target_pids.size()) {
+                check_pids = false;
+                break;
+            }
+        }
+
+        sleep(1);
+    }
 
     return 0;
 }
