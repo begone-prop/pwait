@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
 
 #include <iostream>
 #include <fstream>
@@ -15,6 +15,10 @@
 #include <errno.h>
 #include <string.h>
 #include <getopt.h>
+#include <time.h>
+
+#define TIMEOUT_SIGNAL SIGUSR1
+#define USEC 1e8
 
 static const struct option long_options[] = {
     {"timeout", required_argument, NULL, 't'},
@@ -30,6 +34,14 @@ struct process {
 bool isNumber(const char*);
 bool checkPid(pid_t);
 std::vector<process> buildProcessVec(void);
+void timerExpire(int);
+
+static volatile sig_atomic_t timer_done = 0;
+
+void timerExpire(int signo) {
+    (void) signo;
+    timer_done = 1;
+}
 
 bool checkPid(pid_t pid) {
     int saved_errno = errno;
@@ -91,6 +103,7 @@ std::vector<process> buildProcessMap(void) {
             if(line.find("Name") == 0) {
                 std::stringstream ss(line);
                 std::string _, name;
+                // TODO: Better name handling
                 ss >> _ >> name;
                 processes.push_back({name, std::atoi(proc_entry->d_name)});
                 break;
@@ -103,26 +116,46 @@ std::vector<process> buildProcessMap(void) {
 }
 
 int main(int argc, char** argv) {
-    (void) argc;
-    (void) argv;
 
     bool gathered_proc_info = false;
     std::vector<process> processes;
 
+    double timeout = -1;
+    double sleep_interval = -1;
+
     int opt;
-    while((opt = getopt_long(argc, argv, "t:", long_options, NULL)) != -1) {
+    while((opt = getopt_long(argc, argv, "t:i:", long_options, NULL)) != -1) {
         switch(opt) {
-            case 't':
-                std::cout << "Timeout option given, value is " << optarg << '\n';
+            char* end;
+            case 't': {
+                end = NULL;
+                double temp = strtod(optarg, &end);
+
+                if(*end != '\0' || temp < 0) {
+                    std::cerr << "Invalid argument " << optarg << '\n';
+                    return 1;
+                }
+
+                timeout = temp > 0.1 ? temp : 0.1;
                 break;
 
-            case 'i':
-                std::cout << "Interval option given, value is " << optarg << '\n';
+            }
+
+            case 'i': {
+                end = NULL;
+                double temp = strtod(optarg, &end);
+                if(*end != '\0' || temp < 0) {
+                    std::cerr << "Invalid argument " << optarg << '\n';
+                    return 1;
+                }
+
+                sleep_interval = temp > 0.1 ? temp : 0.1;
                 break;
+            }
 
             default:
                 std::cerr << "Invalid argument\n";
-                break;
+                return 1;
         }
     }
 
@@ -150,38 +183,69 @@ int main(int argc, char** argv) {
         }
     }
 
-    size_t pid_done = 0;
-    bool check_pids = true;
+    if(target_pids.size() == 0) return 1;
 
+    if(timeout != -1) {
+        struct sigaction action;
+        sigemptyset(&action.sa_mask);
+        action.sa_flags = 0;
+        action.sa_handler = timerExpire;
 
-    for(size_t idx = 0; idx < target_pids.size(); idx++) {
-        std::cout << target_pids[idx] << (idx + 1 == target_pids.size() ? "\n" : ", ");
+        if(sigaction(TIMEOUT_SIGNAL, &action, NULL) == -1) {
+            std::cerr << "Failed to establish signal handler\n";
+            return 1;
+        }
+
+        struct sigevent event;
+
+        event.sigev_notify = SIGEV_SIGNAL;
+        event.sigev_signo = TIMEOUT_SIGNAL;
+
+        timer_t t_id;
+        if(timer_create(CLOCK_REALTIME, &event, &t_id) == -1) {
+            std::cerr << "Failed to create timer\n";
+            return 1;
+        }
+
+        //struct timespec req;
+        struct itimerspec req;
+        req.it_interval = {0, 0};
+        req.it_value.tv_sec = (long) timeout;
+        req.it_value.tv_nsec = (long) ((timeout - (long) timeout) / 0.1) * USEC;
+
+        if(timer_settime(t_id, 0, &req, NULL) == -1) {
+            std::cerr << "Failed to set timer\n";
+            return 1;
+        }
     }
 
-    if(target_pids.size() == 0) return 0;
+    struct timespec req;
+    if(sleep_interval != -1) {
+        req.tv_sec = (long) sleep_interval;
+        req.tv_nsec = (long) ((sleep_interval - (long) sleep_interval) / 0.1) * USEC;
+    } else {
+        req.tv_sec = 1;
+        req.tv_nsec = 0;
+    }
 
     size_t count_done = 0;
+    const size_t num_pids = target_pids.size();
 
-    //for(size_t idx = 0; idx < target_pids.size(); idx++) {
-        //std::cout << checkPid(target_pids[idx]) << '\n';
-    //}
-
-    struct timespec req, rem;
-
-    while(check_pids) {
+    while(!timer_done) {
         for(size_t idx = 0; idx < target_pids.size(); idx++) {
             if(target_pids[idx] == 0 || checkPid(target_pids[idx])) continue;
 
             target_pids[idx] = 0;
 
-            if(++count_done == target_pids.size()) {
-                check_pids = false;
-                break;
+            if(++count_done == num_pids) {
+                goto out;
             }
         }
 
-        sleep(1);
+        clock_nanosleep(CLOCK_REALTIME, 0, &req, NULL);
     }
 
-    return 0;
+    out:
+    int rv = !(count_done == num_pids);
+    return rv;
 }
