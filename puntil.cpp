@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <vector>
 
 #include <cstdlib>
@@ -101,11 +100,8 @@ std::vector<process> buildProcessMap(void) {
 
         while(std::getline(status_file, line)) {
             if(line.find("Name") == 0) {
-                std::stringstream ss(line);
-                std::string _, name;
-                // TODO: Better name handling
-                ss >> _ >> name;
-                processes.push_back({name, std::atoi(proc_entry->d_name)});
+                // Copy everything after Name:\t for process name
+                processes.push_back({line.substr(6), std::atoi(proc_entry->d_name)});
                 break;
             }
         }
