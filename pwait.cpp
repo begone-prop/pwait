@@ -59,7 +59,7 @@ bool isNumber(const char *arg) {
     return true;
 }
 
-std::vector<process> buildProcessMap(void) {
+std::vector<process> buildProcessVec(void) {
     static const std::string proc_path = "/proc";
 
     std::vector<process> processes;
@@ -89,7 +89,8 @@ std::vector<process> buildProcessMap(void) {
         }
 
         std::string status_path = proc_path + "/" + proc_entry->d_name + "/status";
-        std::ifstream status_file(status_path);
+        std::ifstream status_file;
+        status_file.open(status_path.c_str());
 
         if(!status_file) {
             std::cerr << "warn: Failed to open " << status_path << '\n';
@@ -101,7 +102,10 @@ std::vector<process> buildProcessMap(void) {
         while(std::getline(status_file, line)) {
             if(line.find("Name") == 0) {
                 // Copy everything after Name:\t for process name
-                processes.push_back({line.substr(6), std::atoi(proc_entry->d_name)});
+                process p;
+                p.name = line.substr(6);
+                p.pid = std::atoi(proc_entry->d_name);
+                processes.push_back(p);
                 break;
             }
         }
@@ -167,7 +171,7 @@ int main(int argc, char** argv) {
             target_pids.push_back(std::atoi(argv[idx]));
         else {
             if(!gathered_proc_info) {
-                processes = buildProcessMap();
+                processes = buildProcessVec();
                 gathered_proc_info = true;
             }
 
@@ -203,9 +207,10 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        //struct timespec req;
         struct itimerspec req;
-        req.it_interval = {0, 0};
+        req.it_interval.tv_sec = 0;
+        req.it_interval.tv_nsec = 0;
+
         req.it_value.tv_sec = (long) timeout;
         req.it_value.tv_nsec = (long) ((timeout - (long) timeout) / 0.1) * USEC;
 
