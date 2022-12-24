@@ -37,6 +37,16 @@ void timerExpire(int);
 
 static volatile sig_atomic_t timer_done = 0;
 
+void usage(void) {
+    static const char* prog_short_name = "pwait";
+
+    std::cerr <<
+        "Usage:\n" << prog_short_name << " [options] <PID..> <PROG NAME..>\n\n"
+        "\t-i, --interval NUMBER\tsleep for NUMBER seconds after each check\n" <<
+        "\t-t, --timeout NUMBER\texit with 1 after NUMBER seconds have passed\n" <<
+        prog_short_name << '\n';
+}
+
 void timerExpire(int signo) {
     (void) signo;
     timer_done = 1;
@@ -124,7 +134,7 @@ int main(int argc, char** argv) {
     double sleep_interval = -1;
 
     int opt;
-    while((opt = getopt_long(argc, argv, "t:i:", long_options, NULL)) != -1) {
+    while((opt = getopt_long(argc, argv, "t:i:h", long_options, NULL)) != -1) {
         switch(opt) {
             char* end;
             case 't': {
@@ -153,6 +163,10 @@ int main(int argc, char** argv) {
                 break;
             }
 
+            case 'h':
+                usage();
+                return 0;
+
             default:
                 std::cerr << "Invalid argument\n";
                 return 1;
@@ -160,7 +174,8 @@ int main(int argc, char** argv) {
     }
 
     if(argc == optind) {
-        std::cerr << program_invocation_short_name << ": No pids given\n";
+        //std::cerr << program_invocation_short_name << ": No pids given\n";
+        usage();
         return 1;
     }
 
