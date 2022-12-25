@@ -1,5 +1,4 @@
 # pwait
-======
 
 ## Description
 `pwait` waits for process supplied on the command line to finish. It's
@@ -37,7 +36,6 @@ cd pwait
 g++ -Wall -Wextra -O2 -std=c++98 ./pwait.cpp -o ./pwait
 ```
 
-======
 **Note:** There is no guarantee that the process you are waiting for is the one
 you actually want because it's only defined to `wait` for processes that are
 your children. It's possible that in the time interval between checks for the
