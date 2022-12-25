@@ -36,13 +36,12 @@ std::vector<process> buildProcessVec(void);
 void timerExpire(int);
 
 static volatile sig_atomic_t timer_done = 0;
+static const char* prog_short_name = "pwait";
 
 void usage(void) {
-    static const char* prog_short_name = "pwait";
-
     std::cerr <<
         "Usage:\n" << prog_short_name << " [options] <PID..> <PROG NAME..>\n\n"
-        "\t-i, --interval NUMBER\tsleep for NUMBER seconds after each check\n" <<
+        "\t-n, --interval NUMBER\tsleep for NUMBER seconds after each check\n" <<
         "\t-t, --timeout NUMBER\texit with 1 after NUMBER seconds have passed\n" <<
         prog_short_name << '\n';
 }
@@ -133,8 +132,11 @@ int main(int argc, char** argv) {
     double timeout = -1;
     double sleep_interval = -1;
 
+    // TODO:
+    // add support for options to these arguments like 10s 3m, 1d
+
     int opt;
-    while((opt = getopt_long(argc, argv, "t:i:h", long_options, NULL)) != -1) {
+    while((opt = getopt_long(argc, argv, "t:n:h", long_options, NULL)) != -1) {
         switch(opt) {
             char* end;
             case 't': {
@@ -151,7 +153,7 @@ int main(int argc, char** argv) {
 
             }
 
-            case 'i': {
+            case 'n': {
                 end = NULL;
                 double temp = strtod(optarg, &end);
                 if(*end != '\0' || temp < 0) {
