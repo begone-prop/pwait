@@ -19,12 +19,13 @@ Several options can be given that control the behavior of `pwait`.
 seconds have passed and not all the processes have finished.
 `pwait --timeout 30 7204` waits for the process with PID `7204` for a
 maximum of `30` seconds, if the process hasn't finished by then it exits
-with `1`. `<NUMBER>` can also be decimal numbers, such as `0.4`.
+with `1`. `<NUMBER>` can also be decimal numbers, such as `0.4`. By default,
+`pwait` waits indefinitely for the processes to finish.
 
 `-n, --interval <NUMBER>` tells `pwait` to sleep for `<NUMBER>` of seconds
 after each check for the existence of the processes.
 `pwait --interval 3 7204` periodically sleeps for `3` seconds after checking
-for the existence of the process with PID `7204`.
+for the existence of the process with PID `7204`. Default is `1`.
 
 ## Installation
 The program is written to conform to the `C++ 98` standard.
