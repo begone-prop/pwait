@@ -19,7 +19,7 @@ Several options can be given that control the behavior of `pwait`.
 seconds have passed and not all the processes have finished.
 `pwait --timeout 30 7204` waits for the process with PID `7204` for a
 maximum of `30` seconds, if the process hasn't finished by then it exits
-with `1`. `<NUMBER>` can also be decimal numbers, such as `0.4`. By default,
+with `1`. `<NUMBER>` can also be a decimal number, such as `0.4`. By default,
 `pwait` waits indefinitely for the processes to finish.
 
 `-n, --interval <NUMBER>` tells `pwait` to sleep for `<NUMBER>` of seconds
@@ -34,7 +34,7 @@ It can be compiled the following way:
 ```
 git clone https://github.com/begone-prop/pwait.git
 cd pwait
-g++ -Wall -Wextra -O2 -std=c++98 ./pwait.cpp -o ./pwait
+g++ -Wall -Wextra -O2 -std=c++98 -pedantic ./pwait.cpp -o ./pwait
 ```
 
 **Note:** There is no guarantee that the process you are waiting for is the one
