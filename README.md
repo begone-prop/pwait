@@ -1,4 +1,4 @@
-# pwait
+# pwait - Wait for processes
 
 ## Description
 `pwait` waits for process supplied on the command line to finish. It's
@@ -42,4 +42,4 @@ you actually want because it's only defined to `wait` for processes that are
 your children. It's possible that in the time interval between checks for the
 existence of the process the original one terminated and a new, different
 process was created and was assigned the same PID. Using smaller values for the
-`--interval` options make the odds of this happening smaller.
+`--interval` option make the odds of this happening smaller.
